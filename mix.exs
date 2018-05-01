@@ -38,7 +38,7 @@ defmodule Crux.Cache.MixProject do
     [
       {:crux_structs, "~> 0.1.0"},
       {:credo, "~> 0.9.2", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.18.3", only: :dev}
+      {:ex_doc, git: "https://github.com/spaceeec/ex_doc", only: :dev}
     ]
   end
 end
