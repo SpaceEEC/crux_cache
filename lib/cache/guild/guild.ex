@@ -124,7 +124,9 @@ defmodule Crux.Cache.Guild do
           require Logger
 
           Logger.warn(
-            "[Crux][Cache][Guild]: No process for guild #{id}. Data: #{inspect(inner_data)}"
+            "[Crux][Cache][Guild]: No process for guild #{inspect(id)}. Data: #{
+              inspect(inner_data)
+            }"
           )
         end
 
@@ -238,7 +240,10 @@ defmodule Crux.Cache.Guild do
 
   def handle_call({:update, other}, _from, guild) do
     require Logger
-    Logger.warn("[Crux][Cache][Guild]: Received an unexpected insert or update: #{inspect(other)}")
+
+    Logger.warn(
+      "[Crux][Cache][Guild]: Received an unexpected insert or update: #{inspect(other)}"
+    )
 
     {:reply, :error, guild}
   end
@@ -256,14 +261,10 @@ defmodule Crux.Cache.Guild do
     {:reply, :ok, guild}
   end
 
-  def handle_call({:delete, %User{id: user_id}}, _from, guild) do
-    guild =
-      guild
-      |> Map.update!(:members, &Map.delete(&1, user_id))
-      |> Map.update!(:voice_states, &Map.delete(&1, user_id))
+  def handle_call({:delete, %Member{user: user_id}}, _from, guild),
+    do: delete_member(user_id, guild)
 
-    {:reply, :ok, guild}
-  end
+  def handle_call({:delete, %User{id: user_id}}, _from, guild), do: delete_member(user_id, guild)
 
   def handle_call({:delete, :remove}, _from, %{channels: channels, emojis: emojis}) do
     Enum.each(channels, &Cache.channel_cache().delete/1)
@@ -294,5 +295,14 @@ defmodule Crux.Cache.Guild do
       end
 
     {:noreply, state}
+  end
+
+  defp delete_member(user_id, guild) do
+    guild =
+      guild
+      |> Map.update!(:members, &Map.delete(&1, user_id))
+      |> Map.update!(:voice_states, &Map.delete(&1, user_id))
+
+    {:reply, :ok, guild}
   end
 end
