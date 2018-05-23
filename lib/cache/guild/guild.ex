@@ -78,7 +78,7 @@ defmodule Crux.Cache.Guild do
 
   @doc """
     Deletes a guild.
-    
+
     > This will remove all associated channels and emojis from the appropriate caches.
   """
   @spec delete(id :: integer()) :: :ok | :error
@@ -255,7 +255,7 @@ defmodule Crux.Cache.Guild do
   end
 
   def handle_call({:delete, %Channel{id: id}}, _from, guild) do
-    guild = Map.update!(guild, :channel, &MapSet.delete(&1, id))
+    guild = Map.update!(guild, :channels, &MapSet.delete(&1, id))
     Cache.channel_cache().delete(id)
 
     {:reply, :ok, guild}
