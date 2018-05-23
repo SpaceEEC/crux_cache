@@ -174,7 +174,7 @@ defmodule Crux.Cache.Guild do
   end
 
   def handle_call({:update, %Member{user: id} = member}, _from, %{members: members} = guild) do
-    members = Map.update(members, id, %{}, &Map.merge(&1, member))
+    members = Map.update(members, id, %Crux.Structs.Member{}, &Map.merge(&1, member))
     guild = Map.put(guild, :members, members)
 
     {:reply, Map.get(members, id), guild}
