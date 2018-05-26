@@ -1,28 +1,33 @@
 defmodule Crux.Cache.MixProject do
   use Mix.Project
 
+  @vsn "0.1.0"
+  @name :crux_cache
+
   def project do
     [
       start_permanent: Mix.env() == :prod,
       package: package(),
-      app: :crux_cache,
-      version: "0.1.0",
+      app: @name,
+      version: @vsn,
       elixir: "~> 1.6",
       description: "Package providing Discord API struct caches for crux.",
-      source_url: "https://github.com/SpaceEEC/crux_cache/",
-      homepage_url: "https://github.com/SpaceEEC/crux_cache/",
+      source_url: "https://github.com/SpaceEEC/#{@name}/",
+      homepage_url: "https://github.com/SpaceEEC/#{@name}/",
       deps: deps()
     ]
   end
 
   def package do
     [
-      name: :crux_cache,
+      name: @name,
       licenses: ["MIT"],
       maintainers: ["SpaceEEC"],
       links: %{
-        "GitHub" => "https://github.com/SpaceEEC/crux_cache/",
-        "Docs" => "https://hexdocs.pm/crux_cache/"
+        "GitHub" => "https://github.com/SpaceEEC/#{@name}/",
+        "Changelog" => "https://github.com/SpaceEEC/#{@name}/releases/tag/#{@vsn}/",
+        "Documentation" => "https://hexdocs.pm/#{@name}/",
+        "Unified Development Documentation" => "https://crux.randomly.space/"
       }
     ]
   end
