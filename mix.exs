@@ -1,7 +1,7 @@
 defmodule Crux.Cache.MixProject do
   use Mix.Project
 
-  @vsn "0.1.0"
+  @vsn "0.1.1"
   @name :crux_cache
 
   def project do
