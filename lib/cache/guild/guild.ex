@@ -180,7 +180,7 @@ defmodule Crux.Cache.Guild do
           Map.put(members, id, Map.merge(old_member, member))
 
         _ ->
-          Map.put(members, id, Crux.Structs.create(member, Member))
+          Map.put(members, id, member)
       end
 
     guild = Map.put(guild, :members, members)
