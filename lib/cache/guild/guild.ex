@@ -225,7 +225,11 @@ defmodule Crux.Cache.Guild do
     {:reply, channel, guild}
   end
 
-  def handle_call({:update, {%User{id: user_id}, roles} = data}, _from, %{members: members} = guild) do
+  def handle_call(
+        {:update, {%User{id: user_id}, roles} = data},
+        _from,
+        %{members: members} = guild
+      ) do
     guild =
       if Map.has_key?(members, user_id) do
         members = Map.update!(members, user_id, &Map.put(&1, :roles, roles))
