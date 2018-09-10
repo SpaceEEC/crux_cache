@@ -17,17 +17,17 @@ defmodule Crux.Cache.Guild do
   alias Crux.Structs.{Channel, Guild, Member, User, Role, VoiceState}
 
   @doc false
-  def start_link(%Guild{id: id} = guild) do
-    name = {:via, Registry, {@registry, id}}
+  def start_link(%Guild{id: guild_id} = guild) do
+    name = {:via, Registry, {@registry, guild_id}}
     GenServer.start_link(__MODULE__, guild, name: name)
   end
 
   @doc """
     Looks up the `t:pid/0` of a `Crux.Cache.Guild`'s  `GenServer` by guild id.
   """
-  @spec lookup(id :: integer()) :: {:ok, pid()} | :error
-  def lookup(id) do
-    with [{pid, _other}] <- Registry.lookup(@registry, id),
+  @spec lookup(guild_id :: Crux.Rest.snowflake()) :: {:ok, pid()} | :error
+  def lookup(guild_id) do
+    with [{pid, _other}] <- Registry.lookup(@registry, guild_id),
          true <- Process.alive?(pid) do
       {:ok, pid}
     else
@@ -46,13 +46,13 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.VoiceState`
   """
   @spec insert(data :: term()) :: term()
-  def insert({id, {:emojis, _emojis} = data}), do: do_cast(id, {:update, data})
+  def insert({guild_id, {:emojis, _emojis} = data}), do: do_cast(guild_id, {:update, data})
   def insert(%Member{} = data), do: do_cast(data.guild_id, data)
-  def insert({id, {:members, _members} = data}), do: do_cast(id, {:update, data})
+  def insert({guild_id, {:members, _members} = data}), do: do_cast(guild_id, {:update, data})
   def insert(%Role{} = data), do: do_cast(data.guild_id, data)
   def insert(%Channel{} = data), do: do_cast(data.guild_id, data)
   # Presence / Role update
-  def insert({id, {%User{}, _roles} = data}), do: do_cast(id, data)
+  def insert({guild_id, {%User{}, _roles} = data}), do: do_cast(guild_id, data)
   def insert(%VoiceState{} = data), do: do_cast(data.guild_id, data)
   def insert(%Guild{} = data), do: do_cast(data.id, data)
 
@@ -66,13 +66,13 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.VoiceState`
   """
   @spec update(data :: term()) :: term()
-  def update({id, {:emojis, _emojis} = data}), do: do_call(id, {:update, data})
+  def update({guild_id, {:emojis, _emojis} = data}), do: do_call(guild_id, {:update, data})
   def update(%Member{} = data), do: do_call(data.guild_id, data)
-  def update({id, {:members, _members} = data}), do: do_call(id, {:update, data})
+  def update({guild_id, {:members, _members} = data}), do: do_call(guild_id, {:update, data})
   def update(%Role{} = data), do: do_call(data.guild_id, data)
   def update(%Channel{} = data), do: do_call(data.guild_id, data)
   # Presence / Role update
-  def update({id, {%User{}, _roles} = data}), do: do_call(id, data)
+  def update({guild_id, {%User{}, _roles} = data}), do: do_call(guild_id, data)
   def update(%VoiceState{} = data), do: do_call(data.guild_id, data)
   def update(%Guild{} = data), do: do_call(data.id, data)
 
@@ -81,8 +81,8 @@ defmodule Crux.Cache.Guild do
 
     > This will remove all associated channels and emojis from the appropriate caches.
   """
-  @spec delete(id :: integer()) :: :ok | :error
-  def delete(id), do: do_call(id, {:delete, :remove})
+  @spec delete(guild_id :: Crux.Rest.snowflake()) :: :ok | :error
+  def delete(guild_id), do: do_call(guild_id, {:delete, :remove})
 
   @doc """
     Deletes a:
@@ -90,30 +90,31 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Role` from the guild
     * `Crux.Structs.Channel` from the guild
   """
-  @spec delete(id :: integer(), data :: term()) :: :ok | :error
-  def delete(id, data), do: do_call(id, {:delete, data})
+  @spec delete(guild_id :: Crux.Rest.snowflake(), data :: term()) :: :ok | :error
+  def delete(guild_id, data), do: do_call(guild_id, {:delete, data})
 
   @doc """
   Fetches a guild from the cache by id.
   """
-  @spec fetch(id :: integer()) :: {:ok, Guild.t()} | :error
-  def fetch(id), do: with({:ok, pid} <- lookup(id), do: {:ok, GenServer.call(pid, :fetch)})
+  @spec fetch(guild_id :: Crux.Rest.snowflake()) :: {:ok, Guild.t()} | :error
+  def fetch(guild_id),
+    do: with({:ok, pid} <- lookup(guild_id), do: {:ok, GenServer.call(pid, :fetch)})
 
   @doc """
   Fetches a guild from the cache by id, raises if not found.
   """
-  @spec fetch!(id :: integer()) :: Guild.t() | no_return()
-  def fetch!(id) do
-    with {:ok, guild} <- fetch(id) do
+  @spec fetch!(guild_id :: Crux.Rest.snowflake()) :: Guild.t() | no_return()
+  def fetch!(guild_id) do
+    with {:ok, guild} <- fetch(guild_id) do
       guild
     else
       _ ->
-        raise "Could not find a guild with the id #{id}"
+        raise "Could not find a guild with the id #{inspect(guild_id)} in the cache."
     end
   end
 
-  defp do_call(id, {atom, inner_data} = data) when is_atom(atom) do
-    case lookup(id) do
+  defp do_call(guild_id, {atom, inner_data} = data) when is_atom(atom) do
+    case lookup(guild_id) do
       {:ok, pid} ->
         GenServer.call(pid, data)
 
@@ -124,9 +125,8 @@ defmodule Crux.Cache.Guild do
           require Logger
 
           Logger.warn(
-            "[Crux][Cache][Guild]: No process for guild #{inspect(id)}. Data: #{
-              inspect(inner_data)
-            }"
+            "[Crux][Cache][Guild]: No process for guild #{inspect(guild_id)}." <>
+              "Data: #{inspect(inner_data)}"
           )
         end
 
@@ -134,10 +134,10 @@ defmodule Crux.Cache.Guild do
     end
   end
 
-  defp do_call(id, data), do: do_call(id, {:update, data})
+  defp do_call(guild_id, data), do: do_call(guild_id, {:update, data})
 
-  defp do_cast(id, {atom, inner_data} = data) when is_atom(atom) do
-    case lookup(id) do
+  defp do_cast(guild_id, {atom, inner_data} = data) when is_atom(atom) do
+    case lookup(guild_id) do
       {:ok, pid} ->
         GenServer.cast(pid, data)
 
@@ -148,7 +148,8 @@ defmodule Crux.Cache.Guild do
           require Logger
 
           Logger.warn(
-            "[Crux][Cache][Guild]: No process for guild #{id}. Data: #{inspect(inner_data)}"
+            "[Crux][Cache][Guild]: No process for guild #{inspect(guild_id)}." <>
+              " Data: #{inspect(inner_data)}"
           )
         end
     end
@@ -156,7 +157,7 @@ defmodule Crux.Cache.Guild do
     data
   end
 
-  defp do_cast(id, data), do: do_cast(id, {:update, data})
+  defp do_cast(guild_id, data), do: do_cast(guild_id, {:update, data})
 
   def init(%Guild{} = guild), do: {:ok, guild}
 
@@ -173,19 +174,19 @@ defmodule Crux.Cache.Guild do
     {:reply, new_emojis, Map.put(guild, :emojis, new_emojis)}
   end
 
-  def handle_call({:update, %Member{user: id} = member}, _from, %{members: members} = guild) do
+  def handle_call({:update, %Member{user: user_id} = member}, _from, %{members: members} = guild) do
     members =
       case members do
-        %{^id => old_member} ->
-          Map.put(members, id, Map.merge(old_member, member))
+        %{^user_id => old_member} ->
+          Map.put(members, user_id, Map.merge(old_member, member))
 
         _ ->
-          Map.put(members, id, member)
+          Map.put(members, user_id, member)
       end
 
     guild = Map.put(guild, :members, members)
 
-    {:reply, Map.get(members, id), guild}
+    {:reply, Map.get(members, user_id), guild}
   end
 
   def handle_call({:update, {:members, members}}, from, guild) do
@@ -212,22 +213,22 @@ defmodule Crux.Cache.Guild do
     end
   end
 
-  def handle_call({:update, %Role{id: id} = role}, _from, guild) do
-    guild = Map.update!(guild, :roles, &Map.put(&1, id, role))
+  def handle_call({:update, %Role{id: role_id} = role}, _from, guild) do
+    guild = Map.update!(guild, :roles, &Map.put(&1, role_id, role))
 
     {:reply, role, guild}
   end
 
-  def handle_call({:update, %Channel{id: id} = channel}, _from, guild) do
-    guild = Map.update!(guild, :channels, &MapSet.put(&1, id))
+  def handle_call({:update, %Channel{id: channel_id} = channel}, _from, guild) do
+    guild = Map.update!(guild, :channels, &MapSet.put(&1, channel_id))
 
     {:reply, channel, guild}
   end
 
-  def handle_call({:update, {%User{id: id}, roles} = data}, _from, %{members: members} = guild) do
+  def handle_call({:update, {%User{id: user_id}, roles} = data}, _from, %{members: members} = guild) do
     guild =
-      if Map.has_key?(members, id) do
-        members = Map.update!(members, id, &Map.put(&1, :roles, roles))
+      if Map.has_key?(members, user_id) do
+        members = Map.update!(members, user_id, &Map.put(&1, :roles, roles))
         Map.put(guild, :members, members)
       else
         guild
@@ -262,9 +263,9 @@ defmodule Crux.Cache.Guild do
     {:reply, :ok, guild}
   end
 
-  def handle_call({:delete, %Channel{id: id}}, _from, guild) do
-    guild = Map.update!(guild, :channels, &MapSet.delete(&1, id))
-    Cache.channel_cache().delete(id)
+  def handle_call({:delete, %Channel{id: channel_id}}, _from, guild) do
+    guild = Map.update!(guild, :channels, &MapSet.delete(&1, channel_id))
+    Cache.channel_cache().delete(channel_id)
 
     {:reply, :ok, guild}
   end
