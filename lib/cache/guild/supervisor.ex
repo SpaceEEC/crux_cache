@@ -23,11 +23,9 @@ defmodule Crux.Cache.Guild.Supervisor do
     )
   end
 
-  def guild_ids do
-    Supervisor.which_children(__MODULE__)
-    |> Enum.map(fn {_, pid, _, _} ->
-      Registry.keys(@registry, pid)
-      |> List.first()
-    end)
+  def guild_ids() do
+    for {id, _, _, _} when is_integer(id) <- Supervisor.which_children(__MODULE__) do
+      id
+    end
   end
 end
