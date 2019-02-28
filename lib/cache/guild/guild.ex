@@ -124,10 +124,10 @@ defmodule Crux.Cache.Guild do
         else
           require Logger
 
-          Logger.warn(
+          Logger.warn(fn ->
             "[Crux][Cache][Guild]: No process for guild #{inspect(guild_id)}." <>
               "Data: #{inspect(inner_data)}"
-          )
+          end)
         end
 
         data
@@ -147,10 +147,10 @@ defmodule Crux.Cache.Guild do
         else
           require Logger
 
-          Logger.warn(
+          Logger.warn(fn ->
             "[Crux][Cache][Guild]: No process for guild #{inspect(guild_id)}." <>
               " Data: #{inspect(inner_data)}"
-          )
+          end)
         end
     end
 
@@ -254,9 +254,9 @@ defmodule Crux.Cache.Guild do
   def handle_call({:update, other}, _from, guild) do
     require Logger
 
-    Logger.warn(
+    Logger.warn(fn ->
       "[Crux][Cache][Guild]: Received an unexpected insert or update: #{inspect(other)}"
-    )
+    end)
 
     {:reply, :error, guild}
   end
@@ -288,7 +288,8 @@ defmodule Crux.Cache.Guild do
 
   def handle_call({:delete, other}, _from, guild) do
     require Logger
-    Logger.warn("[Crux][Cache][Guild]: Received an unexpected delete: #{inspect(other)}")
+
+    Logger.warn(fn -> "[Crux][Cache][Guild]: Received an unexpected delete: #{inspect(other)}" end)
 
     {:reply, :error, guild}
   end
