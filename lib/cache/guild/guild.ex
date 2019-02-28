@@ -213,14 +213,18 @@ defmodule Crux.Cache.Guild do
     end
   end
 
-  def handle_call({:update, %Role{id: role_id} = role}, _from, guild) do
-    guild = Map.update!(guild, :roles, &Map.put(&1, role_id, role))
+  def handle_call({:update, %Role{id: role_id} = role}, _from, %{roles: roles} = guild) do
+    guild = %{guild | roles: Map.put(roles, role_id, role)}
 
     {:reply, role, guild}
   end
 
-  def handle_call({:update, %Channel{id: channel_id} = channel}, _from, guild) do
-    guild = Map.update!(guild, :channels, &MapSet.put(&1, channel_id))
+  def handle_call(
+        {:update, %Channel{id: channel_id} = channel},
+        _from,
+        %{channels: channels} = guild
+      ) do
+    guild = %{guild | channels: MapSet.put(channels, channel_id)}
 
     {:reply, channel, guild}
   end
@@ -231,18 +235,27 @@ defmodule Crux.Cache.Guild do
         %{members: members} = guild
       ) do
     guild =
-      if Map.has_key?(members, user_id) do
-        members = Map.update!(members, user_id, &Map.put(&1, :roles, roles))
-        Map.put(guild, :members, members)
-      else
-        guild
+      case members do
+        %{^user_id => member} ->
+          member = %{member | roles: roles}
+          members = %{members | user_id => member}
+          %{guild | members: members}
+
+        _ ->
+          guild
       end
 
     {:reply, data, guild}
   end
 
-  def handle_call({:update, %VoiceState{user_id: user_id} = voice_state}, _from, guild) do
-    {:reply, voice_state, Map.update!(guild, :voice_states, &Map.put(&1, user_id, voice_state))}
+  def handle_call(
+        {:update, %VoiceState{user_id: user_id} = voice_state},
+        _from,
+        %{voice_states: voice_states} = guild
+      ) do
+    voice_states = Map.put(voice_states, user_id, voice_state)
+    guild = %{guild | voice_states: voice_states}
+    {:reply, voice_state, guild}
   end
 
   def handle_call({:update, %Guild{} = new_guild}, _from, guild) do
@@ -261,14 +274,14 @@ defmodule Crux.Cache.Guild do
     {:reply, :error, guild}
   end
 
-  def handle_call({:delete, %Role{id: role_id}}, _from, guild) do
-    guild = Map.update!(guild, :roles, &Map.delete(&1, role_id))
+  def handle_call({:delete, %Role{id: role_id}}, _from, %{roles: roles} = guild) do
+    guild = %{guild | roles: Map.delete(roles, role_id)}
 
     {:reply, :ok, guild}
   end
 
-  def handle_call({:delete, %Channel{id: channel_id}}, _from, guild) do
-    guild = Map.update!(guild, :channels, &MapSet.delete(&1, channel_id))
+  def handle_call({:delete, %Channel{id: channel_id}}, _from, %{channels: channels} = guild) do
+    guild = %{guild | channels: MapSet.delete(channels, channel_id)}
     Cache.channel_cache().delete(channel_id)
 
     {:reply, :ok, guild}
@@ -311,11 +324,15 @@ defmodule Crux.Cache.Guild do
     {:noreply, state}
   end
 
-  defp delete_member(user_id, guild) do
-    guild =
+  defp delete_member(
+         user_id,
+         %{members: members, voice_states: voice_states} = guild
+       ) do
+    guild = %{
       guild
-      |> Map.update!(:members, &Map.delete(&1, user_id))
-      |> Map.update!(:voice_states, &Map.delete(&1, user_id))
+      | members: Map.delete(members, user_id),
+        voice_states: Map.delete(voice_states, user_id)
+    }
 
     {:reply, :ok, guild}
   end
