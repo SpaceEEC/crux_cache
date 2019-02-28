@@ -23,7 +23,7 @@ defmodule Crux.Cache.Guild do
   end
 
   @doc """
-    Looks up the `t:pid/0` of a `Crux.Cache.Guild`'s  `GenServer` by guild id.
+    Looks up the `t:pid/0` of a `Crux.Cache.Guild`'s `GenServer` by guild id.
   """
   @spec lookup(guild_id :: Crux.Rest.snowflake()) :: {:ok, pid()} | :error
   def lookup(guild_id) do

@@ -1,6 +1,6 @@
 defmodule Crux.Cache.Base do
   @moduledoc """
-    Base cache utilising ETS tables, `:ets.new/2`
+    Base cache utilising ETS tables, `:ets`
   """
   defmacro __using__(args \\ []) do
     # This does not feel right
@@ -17,13 +17,16 @@ defmodule Crux.Cache.Base do
 
       @spec insert(data :: term()) :: term()
       def insert(data), do: Crux.Cache.Base.cache(@name, data)
+
       @spec update(data :: term()) :: term()
       def update(data), do: Crux.Cache.Base.update(@name, data)
+
       @spec delete(id :: Crux.Cache.key()) :: :ok
       def delete(id), do: Crux.Cache.Base.delete(@name, id)
 
       @spec fetch(id :: Crux.Cache.key()) :: {:ok, term()} | :error
       @spec fetch!(id :: identifier()) :: {:ok, term()} | :error
+
       if @struct do
         def fetch(id) do
           with {:ok, data} <- Crux.Cache.Base.fetch(@name, id),
