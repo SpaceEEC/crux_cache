@@ -22,7 +22,7 @@ defmodule Crux.Cache do
 
   Optional, you maybe want to use external caching, e.g. Redis, not requiring anything like that.
   """
-  @callback start_link(args :: term()) :: Supervisor.on_start()
+  @callback start_link(args :: term(), gen_opts :: GenServer.options()) :: Supervisor.on_start()
 
   @doc """
   Inserts data into the cache.
@@ -69,47 +69,7 @@ defmodule Crux.Cache do
   @doc """
   Fetches data from the cache by key, raises if not found.
   """
-  @callback fetch!(id :: identifier()) :: term() | :error
+  @callback fetch!(id :: identifier()) :: term() | no_return()
 
-  @optional_callbacks start_link: 1
-
-  @doc """
-    Fetches the module handling the guild caching.
-
-    Defaults to `Crux.Cache.Guild`.
-  """
-  @spec guild_cache() :: module()
-  def guild_cache(), do: Application.get_env(:crux_cache, :guild, Crux.Cache.Guild)
-
-  @doc """
-    Fetches the module handling the guild cache.
-
-    Defaults to `Crux.Cache.Channel`.
-  """
-  @spec channel_cache() :: module()
-  def channel_cache(), do: Application.get_env(:crux_cache, :channel, Crux.Cache.Channel)
-
-  @doc """
-    Fetches the module handling the emoji cache.
-
-    Defaults to `Crux.Cache.Emoji`.
-  """
-  @spec emoji_cache() :: module()
-  def emoji_cache(), do: Application.get_env(:crux_cache, :emoji, Crux.Cache.Emoji)
-
-  @doc """
-    Fetches the module handling the presence cache.
-
-    Defaults to `Crux.Cache.Presence`.
-  """
-  @spec presence_cache() :: module()
-  def presence_cache(), do: Application.get_env(:crux_cache, :presence, Crux.Cache.Presence)
-
-  @doc """
-    Fetches the module handling the user cache.
-
-    Defaults to `Crux.Cache.User`.
-  """
-  @spec user_cache() :: module()
-  def user_cache(), do: Application.get_env(:crux_cache, :user, Crux.Cache.User)
+  @optional_callbacks start_link: 2
 end

@@ -1,7 +1,7 @@
 defmodule Crux.Cache.MixProject do
   use Mix.Project
 
-  @vsn "0.1.1"
+  @vsn "0.2.0-dev"
   @name :crux_cache
 
   def project do
@@ -34,8 +34,7 @@ defmodule Crux.Cache.MixProject do
 
   def application do
     [
-      extra_applications: [:logger],
-      mod: {Crux.Cache.Application, []}
+      extra_applications: [:logger]
     ]
   end
 
