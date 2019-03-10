@@ -1,7 +1,7 @@
 defmodule Crux.Cache.Default do
   @moduledoc """
     A provider using the default caches:
-    * `Crux.Cache.Guild` (`Crux.Cache.Guild.Supervisor`)
+    * `Crux.Cache.Guild`
     * `Crux.Cache.Channel`
     * `Crux.Cache.Emoji`
     * `Crux.Cache.Presence`
@@ -13,7 +13,7 @@ defmodule Crux.Cache.Default do
 
   def init(_) do
     children = [
-      {Cache.Guild.Supervisor, [__MODULE__]},
+      Cache.Guild.Supervisor,
       Cache.Channel,
       Cache.Emoji,
       Cache.Presence,

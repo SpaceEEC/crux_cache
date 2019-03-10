@@ -7,17 +7,18 @@ defmodule Crux.Cache.Guild do
 
   @behaviour Crux.Cache
 
+  @provider Crux.Cache.Default
+
   use GenServer
 
-  @registry Crux.Cache.Guild.Registry
-
   alias Crux.Cache.Guild.Supervisor, as: GuildSupervisor
+  alias Crux.Cache.Guild.Registry
 
   alias Crux.Structs.{Channel, Guild, Member, User, Role, VoiceState}
 
   @doc false
   def start_link(%Guild{id: guild_id} = guild) do
-    name = {:via, Registry, {@registry, guild_id}}
+    name = {:via, Registry, guild_id}
     GenServer.start_link(__MODULE__, guild, name: name)
   end
 
@@ -26,7 +27,7 @@ defmodule Crux.Cache.Guild do
   """
   @spec lookup(guild_id :: Crux.Rest.snowflake()) :: {:ok, pid()} | :error
   def lookup(guild_id) do
-    with [{pid, _other}] <- Registry.lookup(@registry, guild_id),
+    with pid when is_pid(pid) <- Registry.whereis_name(guild_id),
          true <- Process.alive?(pid) do
       {:ok, pid}
     else
@@ -158,24 +159,23 @@ defmodule Crux.Cache.Guild do
 
   defp do_cast(guild_id, data), do: do_cast(guild_id, {:update, data})
 
-  def init({%Guild{} = guild, cache_provider}), do: {:ok, {guild, cache_provider}}
+  def init(%Guild{} = guild), do: {:ok, guild}
 
   @doc false
-  def handle_call(:fetch, _from, {guild, _cache_provider} = state), do: {:reply, guild, state}
+  def handle_call(:fetch, _from, guild), do: {:reply, guild, guild}
 
   def handle_call(
         {:update, {:emojis, emojis}},
         _from,
-        {%{emojis: old_emojis} = guild, cache_provider}
+        %{emojis: old_emojis} = guild
       ) do
     new_emojis = MapSet.new(emojis, &Map.get(&1, :id))
 
     # Delete old emojis
     MapSet.difference(old_emojis, new_emojis)
-    |> Enum.each(&cache_provider.emoji_cache().delete/1)
+    |> Enum.each(&@provider.emoji_cache().delete/1)
 
-    guild = %{guild | emojis: new_emojis}
-    state = {guild, cache_provider}
+    state = %{guild | emojis: new_emojis}
 
     {:reply, new_emojis, state}
   end
@@ -183,7 +183,7 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:update, %Member{user: user_id} = member},
         _from,
-        {%{members: members} = guild, cache_provider}
+        %{members: members} = guild
       ) do
     members =
       case members do
@@ -194,8 +194,7 @@ defmodule Crux.Cache.Guild do
           Map.put(members, user_id, member)
       end
 
-    guild = %{guild | members: members}
-    state = {guild, cache_provider}
+    state = %{guild | members: members}
 
     {:reply, Map.get(members, user_id), state}
   end
@@ -203,7 +202,7 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:update, {:members, members}},
         from,
-        {guild, cache_provider}
+        guild
       ) do
     res =
       members
@@ -221,20 +220,19 @@ defmodule Crux.Cache.Guild do
 
     case res do
       {members, %Guild{} = guild} when is_map(members) ->
-        {:reply, members, {guild, cache_provider}}
+        {:reply, members, guild}
 
       _ ->
-        {:reply, :error, {guild, cache_provider}}
+        {:reply, :error, guild}
     end
   end
 
   def handle_call(
         {:update, %Role{id: role_id} = role},
         _from,
-        {%{roles: roles} = guild, cache_provider}
+        %{roles: roles} = guild
       ) do
-    guild = %{guild | roles: Map.put(roles, role_id, role)}
-    state = {guild, cache_provider}
+    state = %{guild | roles: Map.put(roles, role_id, role)}
 
     {:reply, role, state}
   end
@@ -242,10 +240,10 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:update, %Channel{id: channel_id} = channel},
         _from,
-        {%{channels: channels} = guild, cache_provider}
+        %{channels: channels} = guild
       ) do
     guild = %{guild | channels: MapSet.put(channels, channel_id)}
-    state = {guild, cache_provider}
+    state = guild
 
     {:reply, channel, state}
   end
@@ -253,9 +251,9 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:update, {%User{id: user_id}, roles} = data},
         _from,
-        {%{members: members} = guild, cache_provider}
+        %{members: members} = guild
       ) do
-    guild =
+    state =
       case members do
         %{^user_id => member} ->
           member = %{member | roles: roles}
@@ -266,26 +264,22 @@ defmodule Crux.Cache.Guild do
           guild
       end
 
-    state = {guild, cache_provider}
-
     {:reply, data, state}
   end
 
   def handle_call(
         {:update, %VoiceState{user_id: user_id} = voice_state},
         _from,
-        {%{voice_states: voice_states} = guild, cache_provider}
+        %{voice_states: voice_states} = guild
       ) do
     voice_states = Map.put(voice_states, user_id, voice_state)
-    guild = %{guild | voice_states: voice_states}
-    state = {guild, cache_provider}
+    state = %{guild | voice_states: voice_states}
 
     {:reply, voice_state, state}
   end
 
-  def handle_call({:update, %Guild{} = new_guild}, _from, {guild, cache_provider}) do
-    guild = Map.merge(guild, new_guild)
-    state = {guild, cache_provider}
+  def handle_call({:update, %Guild{} = new_guild}, _from, guild) do
+    state = Map.merge(guild, new_guild)
 
     {:reply, guild, state}
   end
@@ -303,10 +297,9 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:delete, %Role{id: role_id}},
         _from,
-        {%{roles: roles} = guild, cache_provider}
+        %{roles: roles} = guild
       ) do
-    guild = %{guild | roles: Map.delete(roles, role_id)}
-    state = {guild, cache_provider}
+    state = %{guild | roles: Map.delete(roles, role_id)}
 
     {:reply, :ok, state}
   end
@@ -314,11 +307,10 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:delete, %Channel{id: channel_id}},
         _from,
-        {%{channels: channels} = guild, cache_provider}
+        %{channels: channels} = guild
       ) do
-    guild = %{guild | channels: MapSet.delete(channels, channel_id)}
-    cache_provider.channel_cache().delete(channel_id)
-    state = {guild, cache_provider}
+    state = %{guild | channels: MapSet.delete(channels, channel_id)}
+    @provider.channel_cache().delete(channel_id)
 
     {:reply, :ok, state}
   end
@@ -331,10 +323,10 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:delete, :remove},
         _from,
-        {%{channels: channels, emojis: emojis}, cache_provider}
+        %{channels: channels, emojis: emojis}
       ) do
-    Enum.each(channels, &cache_provider.channel_cache().delete/1)
-    Enum.each(emojis, &cache_provider.emoji_cache().delete/1)
+    Enum.each(channels, &@provider.channel_cache().delete/1)
+    Enum.each(emojis, &@provider.emoji_cache().delete/1)
 
     exit(:shutdown)
   end
@@ -366,15 +358,13 @@ defmodule Crux.Cache.Guild do
 
   defp delete_member(
          user_id,
-         {%{members: members, voice_states: voice_states} = guild, cache_provider}
+         %{members: members, voice_states: voice_states} = guild
        ) do
-    guild = %{
+    state = %{
       guild
       | members: Map.delete(members, user_id),
         voice_states: Map.delete(voice_states, user_id)
     }
-
-    state = {guild, cache_provider}
 
     {:reply, :ok, state}
   end
