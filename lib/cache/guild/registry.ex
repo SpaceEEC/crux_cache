@@ -57,17 +57,17 @@ defmodule Crux.Cache.Guild.Registry do
     end
   end
 
-  def handle_call({:unregister, id}, state) do
+  def handle_call({:unregister, id}, _from, state) do
     state = Map.delete(state, id)
 
     {:reply, :ok, state}
   end
 
-  def handle_call({:whereis, id}, state) do
+  def handle_call({:whereis, id}, _from, state) do
     {:reply, Map.get(state, id, :undefined), state}
   end
 
-  def handle_call({:send, id, msg}, state) do
+  def handle_call({:send, id, msg}, _from, state) do
     case state do
       %{^id => pid} -> Kernel.send(pid, msg)
       _ -> :erlang.error(:badarg, [{self(), id}, msg])
