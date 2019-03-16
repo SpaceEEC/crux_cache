@@ -13,7 +13,7 @@ defmodule Crux.Cache.Default do
 
   def init(_) do
     children = [
-      Cache.Guild.Supervisor,
+      Cache.Guild.Supervisor.Supervisor,
       Cache.Channel,
       Cache.Emoji,
       Cache.Presence,
