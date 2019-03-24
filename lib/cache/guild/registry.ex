@@ -74,7 +74,7 @@ defmodule Crux.Cache.Guild.Registry do
     end
   end
 
-  def handle_call({:EXIT, pid, _reason}, state) do
+  def handle_info({:EXIT, pid, _reason}, state) do
     state =
       state
       |> Enum.filter(fn

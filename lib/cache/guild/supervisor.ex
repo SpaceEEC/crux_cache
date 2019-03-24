@@ -28,7 +28,7 @@ defmodule Crux.Cache.Guild.Supervisor do
     DynamicSupervisor.start_child(
       __MODULE__,
       Supervisor.child_spec(
-        {Crux.Cache.Guild, [guild]},
+        {Crux.Cache.Guild, guild},
         id: guild.id,
         restart: :transient
       )

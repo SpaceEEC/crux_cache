@@ -56,8 +56,6 @@ defmodule Crux.Cache do
 
   @doc """
   Deletes data from the cache by key.
-
-  Always returns `:ok`, even when the key did not exist.
   """
   @callback delete(id :: key()) :: :ok
 

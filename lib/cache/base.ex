@@ -76,7 +76,7 @@ defmodule Crux.Cache.Base do
       def handle_call({:delete, id}, _from, state) do
         :ets.delete(@name, id)
 
-        {:reply, :deleted, state}
+        {:reply, :ok, state}
       end
 
       defoverridable start_link: 1,
@@ -94,7 +94,10 @@ defmodule Crux.Cache.Base do
 
   @doc false
   def cache(name, structure) do
-    structure = Util.atomify(structure)
+    structure =
+      Util.atomify(structure)
+      |> Map.update!(:id, &Util.id_to_int/1)
+
     GenServer.cast(name, {:cache, structure})
 
     structure
@@ -102,7 +105,9 @@ defmodule Crux.Cache.Base do
 
   @doc false
   def update(name, structure) do
-    structure = Util.atomify(structure)
+    structure =
+      Util.atomify(structure)
+      |> Map.update!(:id, &Util.id_to_int/1)
 
     GenServer.call(name, {:update, structure})
   end
@@ -136,7 +141,7 @@ defmodule Crux.Cache.Base do
         GenServer.call(name, {:delete, id})
 
       :error ->
-        :already
+        :ok
     end
   end
 

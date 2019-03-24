@@ -81,8 +81,16 @@ defmodule Crux.Cache.Guild do
 
     > This will remove all associated channels and emojis from the appropriate caches.
   """
-  @spec delete(guild_id :: Crux.Rest.snowflake()) :: :ok | :error
-  def delete(guild_id), do: do_call(guild_id, {:delete, :remove})
+  @spec delete(guild_id :: Crux.Rest.snowflake()) :: :ok
+  def delete(guild_id) do
+    case lookup(guild_id) do
+      {:ok, pid} ->
+        GenServer.call(pid, {:delete, :remove})
+
+      :error ->
+        :ok
+    end
+  end
 
   @doc """
     Deletes a:
@@ -90,7 +98,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Role` from the guild
     * `Crux.Structs.Channel` from the guild
   """
-  @spec delete(guild_id :: Crux.Rest.snowflake(), data :: term()) :: :ok | :error
+  @spec delete(guild_id :: Crux.Rest.snowflake(), data :: term()) :: :ok
   def delete(guild_id, data), do: do_call(guild_id, {:delete, data})
 
   @doc """
@@ -130,7 +138,7 @@ defmodule Crux.Cache.Guild do
           end)
         end
 
-        data
+        inner_data
     end
   end
 
@@ -154,7 +162,7 @@ defmodule Crux.Cache.Guild do
         end
     end
 
-    data
+    :ok
   end
 
   defp do_cast(guild_id, data), do: do_cast(guild_id, {:update, data})
@@ -323,12 +331,12 @@ defmodule Crux.Cache.Guild do
   def handle_call(
         {:delete, :remove},
         _from,
-        %{channels: channels, emojis: emojis}
+        %{channels: channels, emojis: emojis} = state
       ) do
     Enum.each(channels, &@provider.channel_cache().delete/1)
     Enum.each(emojis, &@provider.emoji_cache().delete/1)
 
-    exit(:shutdown)
+    {:stop, :shutdown, :ok, state}
   end
 
   def handle_call({:delete, other}, _from, state) do
