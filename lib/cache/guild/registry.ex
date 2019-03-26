@@ -74,6 +74,7 @@ defmodule Crux.Cache.Guild.Registry do
     end
   end
 
+  @impl true
   def handle_info({:EXIT, pid, _reason}, state) do
     state =
       state

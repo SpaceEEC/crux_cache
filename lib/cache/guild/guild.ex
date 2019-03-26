@@ -77,29 +77,48 @@ defmodule Crux.Cache.Guild do
   def update(%Guild{} = data), do: do_call(data.id, data)
 
   @doc """
-    Deletes a guild.
-
-    > This will remove all associated channels and emojis from the appropriate caches.
+    Deletes a:
+    * `Crux.Structs.Member` (if applicable, also their `Crux.Structs.VoiceState`) from the guild
+    * `Crux.Structs.Role` from the guild
+    * `Crux.Structs.Channel` from the guild
+    * `Crux.Structs.Guild` itself
+      > This will remove all associated channels and emojis from the appropriate caches.
   """
-  @spec delete(guild_id :: Crux.Rest.snowflake()) :: :ok
-  def delete(guild_id) do
+  @spec delete(
+          data_or_id ::
+            Crux.Rest.snowflake()
+            | Crux.Structs.Guild.t()
+            | Crux.Structs.Channel.t()
+            | Crux.Structs.Role.t()
+            | Crux.Structs.Member.t()
+        ) :: :ok
+  def delete(data_or_id) do
+    {guild_id, data} =
+      case data_or_id do
+        guild_id when is_number(guild_id) ->
+          {guild_id, :remove}
+
+        %Guild{id: guild_id} ->
+          {guild_id, :remove}
+
+        %Channel{guild_id: guild_id} = channel ->
+          {guild_id, channel}
+
+        %Role{guild_id: guild_id} = role ->
+          {guild_id, role}
+
+        %Member{guild_id: guild_id} = member ->
+          {guild_id, member}
+      end
+
     case lookup(guild_id) do
       {:ok, pid} ->
-        GenServer.call(pid, {:delete, :remove})
+        GenServer.call(pid, {:delete, data})
 
       :error ->
         :ok
     end
   end
-
-  @doc """
-    Deletes a:
-    * `Crux.Structs.User` (effectively their `Crux.Structs.Member` and, if applicable, `Crux.Structs.VoiceState`)
-    * `Crux.Structs.Role` from the guild
-    * `Crux.Structs.Channel` from the guild
-  """
-  @spec delete(guild_id :: Crux.Rest.snowflake(), data :: term()) :: :ok
-  def delete(guild_id, data), do: do_call(guild_id, {:delete, data})
 
   @doc """
   Fetches a guild from the cache by id.
@@ -344,7 +363,7 @@ defmodule Crux.Cache.Guild do
 
     Logger.warn(fn -> "[Crux][Cache][Guild]: Received an unexpected delete: #{inspect(other)}" end)
 
-    {:reply, :error, state}
+    {:reply, :ok, state}
   end
 
   @doc false

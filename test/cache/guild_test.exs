@@ -20,6 +20,16 @@ defmodule Crux.Cache.GuildTest do
         "id" => "260850209699921931",
         "hoist" => false,
         "color" => 0
+      },
+      %{
+        "color" => 8_100_607,
+        "hoist" => true,
+        "id" => "266010752794492928",
+        "managed" => false,
+        "mentionable" => true,
+        "name" => "bot",
+        "permissions" => 0,
+        "position" => 2
       }
     ],
     "region" => "amsterdam",
@@ -134,6 +144,34 @@ defmodule Crux.Cache.GuildTest do
   @struct @data |> Crux.Structs.create(Crux.Structs.Guild)
   @updated_struct @updated_data |> Crux.Structs.create(Crux.Structs.Guild)
 
+  @member %{
+            "user" => %{
+              "username" => "space",
+              "id" => "218348062828003328",
+              "discriminator" => "0001",
+              "avatar" => "646a356e237350bf8b8dfde15667dfc4"
+            },
+            "roles" => [],
+            "mute" => false,
+            "joined_at" => "2016-12-20T19:25:36.417000+00:00",
+            "deaf" => false,
+            "guild_id" => "260850209699921931"
+          }
+          |> Crux.Structs.create(Crux.Structs.Member)
+
+  @role %{
+          "color" => 8_100_607,
+          "hoist" => true,
+          "id" => "266010752794492928",
+          "managed" => false,
+          "mentionable" => true,
+          "name" => "bot",
+          "permissions" => 0,
+          "position" => 2,
+          "guild_id" => "260850209699921931"
+        }
+        |> Crux.Structs.create(Crux.Structs.Role)
+
   doctest @cache
 
   setup do
@@ -151,6 +189,8 @@ defmodule Crux.Cache.GuildTest do
 
     [guild: guild]
   end
+
+  ### guild
 
   test "inserting a guild" do
     # done in setup
@@ -172,4 +212,66 @@ defmodule Crux.Cache.GuildTest do
   test "deleting a non existing guild" do
     assert :ok == @cache.delete(0)
   end
+
+  ### end guild
+  ### member
+
+  test "inserting a member indirectly" do
+    # done in setup
+    assert @member == @cache.fetch!(@struct.id).members[@member.user]
+  end
+
+  test "inserting a member directly" do
+    member = %{@member | user: 130_175_406_673_231_873}
+
+    @cache.update(member)
+
+    assert member == @cache.fetch!(@struct.id).members[member.user]
+  end
+
+  test "updating a member" do
+    member = %{@member | nick: "a nickname"}
+
+    @cache.update(member)
+
+    assert member == @cache.fetch!(@struct.id).members[member.user]
+  end
+
+  test "deleting a member" do
+    assert :ok == @cache.delete(@member)
+
+    assert nil == @cache.fetch!(@struct.id).members[@member.user]
+  end
+
+  ### end member
+  ### role
+
+  test "inserting a role indirectly" do
+    # done in setup
+    assert @role == @cache.fetch!(@struct.id).roles[@role.id]
+  end
+
+  test "inserting a role directly" do
+    role = %{@role | id: 242_685_080_693_243_906}
+
+    @cache.update(role)
+
+    assert role == @cache.fetch!(@struct.id).roles[role.id]
+  end
+
+  test "updating a role" do
+    role = %{@role | name: "new name"}
+
+    @cache.update(role)
+
+    assert role == @cache.fetch!(@struct.id).roles[role.id]
+  end
+
+  test "deleting a role" do
+    assert :ok == @cache.delete(@role)
+
+    assert nil == @cache.fetch!(@struct.id).members[@role.id]
+  end
+
+  ### end role
 end
