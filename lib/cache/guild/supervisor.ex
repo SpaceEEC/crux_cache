@@ -4,6 +4,7 @@ defmodule Crux.Cache.Guild.Supervisor.Supervisor do
 
   def start_link(opts), do: Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @impl true
   def init(_opts) do
     children = [
       Crux.Cache.Guild.Registry,
@@ -20,6 +21,7 @@ defmodule Crux.Cache.Guild.Supervisor do
 
   def start_link(args), do: DynamicSupervisor.start_link(__MODULE__, args, name: __MODULE__)
 
+  @impl true
   def init(_args) do
     DynamicSupervisor.init(strategy: :one_for_one)
   end

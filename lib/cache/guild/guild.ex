@@ -17,6 +17,7 @@ defmodule Crux.Cache.Guild do
   alias Crux.Structs.{Channel, Guild, Member, User, Role, VoiceState}
 
   @doc false
+  @spec start_link(Guild.t()) :: GenServer.on_start()
   def start_link(%Guild{id: guild_id} = guild) do
     name = {:via, Registry, guild_id}
     GenServer.start_link(__MODULE__, guild, name: name)
@@ -45,6 +46,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Member`'s roles
     * `Crux.Structs.VoiceState`
   """
+  @impl true
   @spec insert(data :: term()) :: term()
   def insert({guild_id, {:emojis, _emojis} = data}), do: do_cast(guild_id, {:update, data})
   def insert(%Member{} = data), do: do_cast(data.guild_id, data)
@@ -65,6 +67,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Member`'s roles
     * `Crux.Structs.VoiceState`
   """
+  @impl true
   @spec update(data :: term()) :: term()
   def update({guild_id, {:emojis, _emojis} = data}), do: do_call(guild_id, {:update, data})
   def update(%Member{} = data), do: do_call(data.guild_id, data)
@@ -84,6 +87,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Guild` itself
       > This will remove all associated channels and emojis from the appropriate caches.
   """
+  @impl true
   @spec delete(
           data_or_id ::
             Crux.Rest.snowflake()
@@ -123,6 +127,7 @@ defmodule Crux.Cache.Guild do
   @doc """
   Fetches a guild from the cache by id.
   """
+  @impl true
   @spec fetch(guild_id :: Crux.Rest.snowflake()) :: {:ok, Guild.t()} | :error
   def fetch(guild_id),
     do: with({:ok, pid} <- lookup(guild_id), do: {:ok, GenServer.call(pid, :fetch)})
@@ -130,6 +135,7 @@ defmodule Crux.Cache.Guild do
   @doc """
   Fetches a guild from the cache by id, raises if not found.
   """
+  @impl true
   @spec fetch!(guild_id :: Crux.Rest.snowflake()) :: Guild.t() | no_return()
   def fetch!(guild_id) do
     with {:ok, guild} <- fetch(guild_id) do
@@ -186,9 +192,11 @@ defmodule Crux.Cache.Guild do
 
   defp do_cast(guild_id, data), do: do_cast(guild_id, {:update, data})
 
+  @impl true
   def init(%Guild{} = guild), do: {:ok, guild}
 
   @doc false
+  @impl true
   def handle_call(:fetch, _from, guild), do: {:reply, guild, guild}
 
   def handle_call(
@@ -367,6 +375,7 @@ defmodule Crux.Cache.Guild do
   end
 
   @doc false
+  @impl true
   def handle_cast(message, state) do
     state =
       case handle_call(message, nil, state) do

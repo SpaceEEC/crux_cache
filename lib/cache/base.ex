@@ -43,6 +43,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def init(args) do
         :ets.new(@name, [:named_table, read_concurrency: true])
 
@@ -50,6 +51,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def handle_cast({:cache, structure}, state) do
         {_, _, state} = handle_call({:update, structure}, nil, state)
 
@@ -57,6 +59,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def handle_call({:update, structure}, _from, state) do
         structure =
           case Crux.Cache.Base.fetch(@name, structure.id) do

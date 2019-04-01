@@ -26,6 +26,7 @@ defmodule Crux.Cache.User do
   def me!, do: GenServer.call(@name, :me) |> fetch!()
 
   @doc false
+  @impl true
   def handle_call(:me, _from, %{me: id} = state), do: {:reply, id, state}
   def handle_call(:me, _from, state), do: {:reply, :error, state}
 
