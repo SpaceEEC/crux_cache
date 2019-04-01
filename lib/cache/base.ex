@@ -43,6 +43,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def init(args) do
         :ets.new(@name, [:named_table, read_concurrency: true])
 
@@ -50,6 +51,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def handle_cast({:cache, structure}, state) do
         {_, _, state} = handle_call({:update, structure}, nil, state)
 
@@ -57,6 +59,7 @@ defmodule Crux.Cache.Base do
       end
 
       @doc false
+      @impl true
       def handle_call({:update, structure}, _from, state) do
         structure =
           case Crux.Cache.Base.fetch(@name, structure.id) do
@@ -76,7 +79,7 @@ defmodule Crux.Cache.Base do
       def handle_call({:delete, id}, _from, state) do
         :ets.delete(@name, id)
 
-        {:reply, :deleted, state}
+        {:reply, :ok, state}
       end
 
       defoverridable start_link: 1,
@@ -94,7 +97,10 @@ defmodule Crux.Cache.Base do
 
   @doc false
   def cache(name, structure) do
-    structure = Util.atomify(structure)
+    structure =
+      Util.atomify(structure)
+      |> Map.update!(:id, &Util.id_to_int/1)
+
     GenServer.cast(name, {:cache, structure})
 
     structure
@@ -102,7 +108,9 @@ defmodule Crux.Cache.Base do
 
   @doc false
   def update(name, structure) do
-    structure = Util.atomify(structure)
+    structure =
+      Util.atomify(structure)
+      |> Map.update!(:id, &Util.id_to_int/1)
 
     GenServer.call(name, {:update, structure})
   end
@@ -136,7 +144,7 @@ defmodule Crux.Cache.Base do
         GenServer.call(name, {:delete, id})
 
       :error ->
-        :already
+        :ok
     end
   end
 

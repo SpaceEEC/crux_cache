@@ -7,18 +7,19 @@ defmodule Crux.Cache.Guild do
 
   @behaviour Crux.Cache
 
+  @provider Crux.Cache.Default
+
   use GenServer
 
-  @registry Crux.Cache.Guild.Registry
-
-  alias Crux.Cache
   alias Crux.Cache.Guild.Supervisor, as: GuildSupervisor
+  alias Crux.Cache.Guild.Registry
 
   alias Crux.Structs.{Channel, Guild, Member, User, Role, VoiceState}
 
   @doc false
+  @spec start_link(Guild.t()) :: GenServer.on_start()
   def start_link(%Guild{id: guild_id} = guild) do
-    name = {:via, Registry, {@registry, guild_id}}
+    name = {:via, Registry, guild_id}
     GenServer.start_link(__MODULE__, guild, name: name)
   end
 
@@ -27,7 +28,7 @@ defmodule Crux.Cache.Guild do
   """
   @spec lookup(guild_id :: Crux.Rest.snowflake()) :: {:ok, pid()} | :error
   def lookup(guild_id) do
-    with [{pid, _other}] <- Registry.lookup(@registry, guild_id),
+    with pid when is_pid(pid) <- Registry.whereis_name(guild_id),
          true <- Process.alive?(pid) do
       {:ok, pid}
     else
@@ -45,6 +46,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Member`'s roles
     * `Crux.Structs.VoiceState`
   """
+  @impl true
   @spec insert(data :: term()) :: term()
   def insert({guild_id, {:emojis, _emojis} = data}), do: do_cast(guild_id, {:update, data})
   def insert(%Member{} = data), do: do_cast(data.guild_id, data)
@@ -65,6 +67,7 @@ defmodule Crux.Cache.Guild do
     * `Crux.Structs.Member`'s roles
     * `Crux.Structs.VoiceState`
   """
+  @impl true
   @spec update(data :: term()) :: term()
   def update({guild_id, {:emojis, _emojis} = data}), do: do_call(guild_id, {:update, data})
   def update(%Member{} = data), do: do_call(data.guild_id, data)
@@ -77,25 +80,54 @@ defmodule Crux.Cache.Guild do
   def update(%Guild{} = data), do: do_call(data.id, data)
 
   @doc """
-    Deletes a guild.
-
-    > This will remove all associated channels and emojis from the appropriate caches.
-  """
-  @spec delete(guild_id :: Crux.Rest.snowflake()) :: :ok | :error
-  def delete(guild_id), do: do_call(guild_id, {:delete, :remove})
-
-  @doc """
     Deletes a:
-    * `Crux.Structs.User` (effectively their `Crux.Structs.Member` and, if applicable, `Crux.Structs.VoiceState`)
+    * `Crux.Structs.Member` (if applicable, also their `Crux.Structs.VoiceState`) from the guild
     * `Crux.Structs.Role` from the guild
     * `Crux.Structs.Channel` from the guild
+    * `Crux.Structs.Guild` itself
+      > This will remove all associated channels and emojis from the appropriate caches.
   """
-  @spec delete(guild_id :: Crux.Rest.snowflake(), data :: term()) :: :ok | :error
-  def delete(guild_id, data), do: do_call(guild_id, {:delete, data})
+  @impl true
+  @spec delete(
+          data_or_id ::
+            Crux.Rest.snowflake()
+            | Crux.Structs.Guild.t()
+            | Crux.Structs.Channel.t()
+            | Crux.Structs.Role.t()
+            | Crux.Structs.Member.t()
+        ) :: :ok
+  def delete(data_or_id) do
+    {guild_id, data} =
+      case data_or_id do
+        guild_id when is_number(guild_id) ->
+          {guild_id, :remove}
+
+        %Guild{id: guild_id} ->
+          {guild_id, :remove}
+
+        %Channel{guild_id: guild_id} = channel ->
+          {guild_id, channel}
+
+        %Role{guild_id: guild_id} = role ->
+          {guild_id, role}
+
+        %Member{guild_id: guild_id} = member ->
+          {guild_id, member}
+      end
+
+    case lookup(guild_id) do
+      {:ok, pid} ->
+        GenServer.call(pid, {:delete, data})
+
+      :error ->
+        :ok
+    end
+  end
 
   @doc """
   Fetches a guild from the cache by id.
   """
+  @impl true
   @spec fetch(guild_id :: Crux.Rest.snowflake()) :: {:ok, Guild.t()} | :error
   def fetch(guild_id),
     do: with({:ok, pid} <- lookup(guild_id), do: {:ok, GenServer.call(pid, :fetch)})
@@ -103,6 +135,7 @@ defmodule Crux.Cache.Guild do
   @doc """
   Fetches a guild from the cache by id, raises if not found.
   """
+  @impl true
   @spec fetch!(guild_id :: Crux.Rest.snowflake()) :: Guild.t() | no_return()
   def fetch!(guild_id) do
     with {:ok, guild} <- fetch(guild_id) do
@@ -130,7 +163,7 @@ defmodule Crux.Cache.Guild do
           end)
         end
 
-        data
+        inner_data
     end
   end
 
@@ -154,42 +187,58 @@ defmodule Crux.Cache.Guild do
         end
     end
 
-    data
+    :ok
   end
 
   defp do_cast(guild_id, data), do: do_cast(guild_id, {:update, data})
 
+  @impl true
   def init(%Guild{} = guild), do: {:ok, guild}
 
   @doc false
+  @impl true
   def handle_call(:fetch, _from, guild), do: {:reply, guild, guild}
 
-  def handle_call({:update, {:emojis, emojis}}, _from, %{emojis: old_emojis} = guild) do
+  def handle_call(
+        {:update, {:emojis, emojis}},
+        _from,
+        %{emojis: old_emojis} = guild
+      ) do
     new_emojis = MapSet.new(emojis, &Map.get(&1, :id))
 
     # Delete old emojis
     MapSet.difference(old_emojis, new_emojis)
-    |> Enum.each(&Cache.emoji_cache().delete/1)
+    |> Enum.each(&@provider.emoji_cache().delete/1)
 
-    {:reply, new_emojis, Map.put(guild, :emojis, new_emojis)}
+    state = %{guild | emojis: new_emojis}
+
+    {:reply, new_emojis, state}
   end
 
-  def handle_call({:update, %Member{user: user_id} = member}, _from, %{members: members} = guild) do
+  def handle_call(
+        {:update, %Member{user: user_id} = member},
+        _from,
+        %{members: members} = guild
+      ) do
     members =
       case members do
         %{^user_id => old_member} ->
-          Map.put(members, user_id, Map.merge(old_member, member))
+          %{members | user_id => Map.merge(old_member, member)}
 
         _ ->
           Map.put(members, user_id, member)
       end
 
-    guild = Map.put(guild, :members, members)
+    state = %{guild | members: members}
 
-    {:reply, Map.get(members, user_id), guild}
+    {:reply, Map.get(members, user_id), state}
   end
 
-  def handle_call({:update, {:members, members}}, from, guild) do
+  def handle_call(
+        {:update, {:members, members}},
+        from,
+        guild
+      ) do
     res =
       members
       |> Enum.reduce_while({%{}, guild}, fn member, {members, guild} ->
@@ -213,10 +262,14 @@ defmodule Crux.Cache.Guild do
     end
   end
 
-  def handle_call({:update, %Role{id: role_id} = role}, _from, %{roles: roles} = guild) do
-    guild = %{guild | roles: Map.put(roles, role_id, role)}
+  def handle_call(
+        {:update, %Role{id: role_id} = role},
+        _from,
+        %{roles: roles} = guild
+      ) do
+    state = %{guild | roles: Map.put(roles, role_id, role)}
 
-    {:reply, role, guild}
+    {:reply, role, state}
   end
 
   def handle_call(
@@ -225,8 +278,9 @@ defmodule Crux.Cache.Guild do
         %{channels: channels} = guild
       ) do
     guild = %{guild | channels: MapSet.put(channels, channel_id)}
+    state = guild
 
-    {:reply, channel, guild}
+    {:reply, channel, state}
   end
 
   def handle_call(
@@ -234,7 +288,7 @@ defmodule Crux.Cache.Guild do
         _from,
         %{members: members} = guild
       ) do
-    guild =
+    state =
       case members do
         %{^user_id => member} ->
           member = %{member | roles: roles}
@@ -245,7 +299,7 @@ defmodule Crux.Cache.Guild do
           guild
       end
 
-    {:reply, data, guild}
+    {:reply, data, state}
   end
 
   def handle_call(
@@ -254,60 +308,74 @@ defmodule Crux.Cache.Guild do
         %{voice_states: voice_states} = guild
       ) do
     voice_states = Map.put(voice_states, user_id, voice_state)
-    guild = %{guild | voice_states: voice_states}
-    {:reply, voice_state, guild}
+    state = %{guild | voice_states: voice_states}
+
+    {:reply, voice_state, state}
   end
 
   def handle_call({:update, %Guild{} = new_guild}, _from, guild) do
-    guild = Map.merge(guild, new_guild)
+    state = Map.merge(guild, new_guild)
 
-    {:reply, guild, guild}
+    {:reply, guild, state}
   end
 
-  def handle_call({:update, other}, _from, guild) do
+  def handle_call({:update, other}, _from, state) do
     require Logger
 
     Logger.warn(fn ->
       "[Crux][Cache][Guild]: Received an unexpected insert or update: #{inspect(other)}"
     end)
 
-    {:reply, :error, guild}
+    {:reply, :error, state}
   end
 
-  def handle_call({:delete, %Role{id: role_id}}, _from, %{roles: roles} = guild) do
-    guild = %{guild | roles: Map.delete(roles, role_id)}
+  def handle_call(
+        {:delete, %Role{id: role_id}},
+        _from,
+        %{roles: roles} = guild
+      ) do
+    state = %{guild | roles: Map.delete(roles, role_id)}
 
-    {:reply, :ok, guild}
+    {:reply, :ok, state}
   end
 
-  def handle_call({:delete, %Channel{id: channel_id}}, _from, %{channels: channels} = guild) do
-    guild = %{guild | channels: MapSet.delete(channels, channel_id)}
-    Cache.channel_cache().delete(channel_id)
+  def handle_call(
+        {:delete, %Channel{id: channel_id}},
+        _from,
+        %{channels: channels} = guild
+      ) do
+    state = %{guild | channels: MapSet.delete(channels, channel_id)}
+    @provider.channel_cache().delete(channel_id)
 
-    {:reply, :ok, guild}
+    {:reply, :ok, state}
   end
 
-  def handle_call({:delete, %Member{user: user_id}}, _from, guild),
-    do: delete_member(user_id, guild)
+  def handle_call({:delete, %Member{user: user_id}}, _from, state),
+    do: delete_member(user_id, state)
 
-  def handle_call({:delete, %User{id: user_id}}, _from, guild), do: delete_member(user_id, guild)
+  def handle_call({:delete, %User{id: user_id}}, _from, state), do: delete_member(user_id, state)
 
-  def handle_call({:delete, :remove}, _from, %{channels: channels, emojis: emojis}) do
-    Enum.each(channels, &Cache.channel_cache().delete/1)
-    Enum.each(emojis, &Cache.emoji_cache().delete/1)
+  def handle_call(
+        {:delete, :remove},
+        _from,
+        %{channels: channels, emojis: emojis} = state
+      ) do
+    Enum.each(channels, &@provider.channel_cache().delete/1)
+    Enum.each(emojis, &@provider.emoji_cache().delete/1)
 
-    exit(:shutdown)
+    {:stop, :shutdown, :ok, state}
   end
 
-  def handle_call({:delete, other}, _from, guild) do
+  def handle_call({:delete, other}, _from, state) do
     require Logger
 
     Logger.warn(fn -> "[Crux][Cache][Guild]: Received an unexpected delete: #{inspect(other)}" end)
 
-    {:reply, :error, guild}
+    {:reply, :ok, state}
   end
 
   @doc false
+  @impl true
   def handle_cast(message, state) do
     state =
       case handle_call(message, nil, state) do
@@ -328,12 +396,12 @@ defmodule Crux.Cache.Guild do
          user_id,
          %{members: members, voice_states: voice_states} = guild
        ) do
-    guild = %{
+    state = %{
       guild
       | members: Map.delete(members, user_id),
         voice_states: Map.delete(voice_states, user_id)
     }
 
-    {:reply, :ok, guild}
+    {:reply, :ok, state}
   end
 end

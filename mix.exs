@@ -1,7 +1,7 @@
 defmodule Crux.Cache.MixProject do
   use Mix.Project
 
-  @vsn "0.1.1"
+  @vsn "0.2.0-dev"
   @name :crux_cache
 
   def project do
@@ -34,14 +34,13 @@ defmodule Crux.Cache.MixProject do
 
   def application do
     [
-      extra_applications: [:logger],
-      mod: {Crux.Cache.Application, []}
+      extra_applications: [:logger]
     ]
   end
 
   defp deps do
     [
-      {:crux_structs, "~> 0.1.4"},
+      {:crux_structs, git: "https://github.com/spaceeec/crux_structs.git"},
       {:credo, "~> 0.9.2", only: [:dev, :test], runtime: false},
       {:ex_doc,
        git: "https://github.com/spaceeec/ex_doc",
