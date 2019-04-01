@@ -22,7 +22,7 @@ defmodule Crux.Cache do
 
   Optional, you maybe want to use external caching, e.g. Redis, not requiring anything like that.
   """
-  @callback start_link(args :: term(), gen_opts :: GenServer.options()) :: Supervisor.on_start()
+  @callback start_link(args :: term()) :: Supervisor.on_start()
 
   @doc """
   Inserts data into the cache.
@@ -69,5 +69,5 @@ defmodule Crux.Cache do
   """
   @callback fetch!(id :: identifier()) :: term() | no_return()
 
-  @optional_callbacks start_link: 2
+  @optional_callbacks start_link: 1
 end
