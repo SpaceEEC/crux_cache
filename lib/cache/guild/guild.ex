@@ -11,12 +11,13 @@ defmodule Crux.Cache.Guild do
 
   use GenServer
 
-  alias Crux.Cache.Guild.Supervisor, as: GuildSupervisor
   alias Crux.Cache.Guild.Registry
+  alias Crux.Cache.Guild.Supervisor, as: GuildSupervisor
 
-  alias Crux.Structs.{Channel, Guild, Member, User, Role, VoiceState}
+  alias Crux.Structs.{Channel, Guild, Member, Role, User, VoiceState}
 
   @doc false
+  @impl true
   @spec start_link(Guild.t()) :: GenServer.on_start()
   def start_link(%Guild{id: guild_id} = guild) do
     name = {:via, Registry, guild_id}
@@ -97,23 +98,7 @@ defmodule Crux.Cache.Guild do
             | Crux.Structs.Member.t()
         ) :: :ok
   def delete(data_or_id) do
-    {guild_id, data} =
-      case data_or_id do
-        guild_id when is_number(guild_id) ->
-          {guild_id, :remove}
-
-        %Guild{id: guild_id} ->
-          {guild_id, :remove}
-
-        %Channel{guild_id: guild_id} = channel ->
-          {guild_id, channel}
-
-        %Role{guild_id: guild_id} = role ->
-          {guild_id, role}
-
-        %Member{guild_id: guild_id} = member ->
-          {guild_id, member}
-      end
+    {guild_id, data} = prepare_delete(data_or_id)
 
     case lookup(guild_id) do
       {:ok, pid} ->
@@ -123,6 +108,18 @@ defmodule Crux.Cache.Guild do
         :ok
     end
   end
+
+  defp prepare_delete(guild_id) when is_number(guild_id), do: {guild_id, :remove}
+  defp prepare_delete(%Guild{id: guild_id}) when is_number(guild_id), do: {guild_id, :remove}
+
+  defp prepare_delete(%Channel{guild_id: guild_id} = channel) when is_number(guild_id),
+    do: {guild_id, channel}
+
+  defp prepare_delete(%Role{guild_id: guild_id} = role) when is_number(guild_id),
+    do: {guild_id, role}
+
+  defp prepare_delete(%Member{guild_id: guild_id} = member) when is_number(guild_id),
+    do: {guild_id, member}
 
   @doc """
   Fetches a guild from the cache by id.
@@ -207,7 +204,8 @@ defmodule Crux.Cache.Guild do
     new_emojis = MapSet.new(emojis, &Map.get(&1, :id))
 
     # Delete old emojis
-    MapSet.difference(old_emojis, new_emojis)
+    old_emojis
+    |> MapSet.difference(new_emojis)
     |> Enum.each(&@provider.emoji_cache().delete/1)
 
     state = %{guild | emojis: new_emojis}
@@ -240,8 +238,7 @@ defmodule Crux.Cache.Guild do
         guild
       ) do
     res =
-      members
-      |> Enum.reduce_while({%{}, guild}, fn member, {members, guild} ->
+      Enum.reduce_while(members, {%{}, guild}, fn member, {members, guild} ->
         case handle_call({:update, member}, from, guild) do
           {:reply, %Member{} = member, guild} ->
             members = Map.put(members, member.user, member)

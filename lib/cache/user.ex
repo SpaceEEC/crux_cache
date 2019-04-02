@@ -11,7 +11,7 @@ defmodule Crux.Cache.User do
     Fetches the own user.
   """
   @spec me() :: {:ok, Crux.Structs.User.t()} | :error
-  def me, do: GenServer.call(@name, :me) |> fetch()
+  def me, do: @name |> GenServer.call(:me) |> fetch()
 
   @doc """
     Sets the id of the own user, the data itself has to be inserted into the cache like usual.
@@ -23,7 +23,7 @@ defmodule Crux.Cache.User do
     Fetches the own user, raises if not cached.
   """
   @spec me!() :: Crux.Structs.User.t() | no_return()
-  def me!, do: GenServer.call(@name, :me) |> fetch!()
+  def me!, do: @name |> GenServer.call(:me) |> fetch!()
 
   @doc false
   @impl true

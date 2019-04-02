@@ -11,6 +11,7 @@ defmodule Crux.Cache.Default do
 
   use Cache.Provider
 
+  @spec init(term()) :: {:ok, tuple()}
   def init(_) do
     children = [
       Cache.Guild.Supervisor.Supervisor,

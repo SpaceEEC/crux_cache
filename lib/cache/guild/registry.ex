@@ -3,6 +3,8 @@ defmodule Crux.Cache.Guild.Registry do
 
   use GenServer
 
+  @doc false
+  @spec start_link(term()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end

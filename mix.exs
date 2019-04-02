@@ -41,7 +41,7 @@ defmodule Crux.Cache.MixProject do
   defp deps do
     [
       {:crux_structs, git: "https://github.com/spaceeec/crux_structs.git"},
-      {:credo, "~> 0.9.2", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
       {:ex_doc,
        git: "https://github.com/spaceeec/ex_doc",
        branch: "feat/umbrella",

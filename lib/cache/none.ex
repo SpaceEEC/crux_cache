@@ -41,11 +41,11 @@ defmodule Crux.Cache.None do
   @doc "Returns atomified data as is."
   @impl true
   @spec insert(term()) :: term()
-  def insert(data), do: data |> Util.atomify()
+  def insert(data), do: Util.atomify(data)
   @doc "Returns atomified data as is."
   @impl true
   @spec update(term()) :: term()
-  def update(data), do: data |> Util.atomify()
+  def update(data), do: Util.atomify(data)
   @doc "Is a noop returning `:ok`."
   @impl true
   @spec delete(Crux.Cache.key()) :: :ok

@@ -36,6 +36,7 @@ defmodule Crux.Cache.Provider do
       use Supervisor
 
       @doc false
+      @spec start_link(term(), GenServer.options()) :: Supervisor.on_start()
       def start_link(arg \\ [], opts \\ []) do
         Supervisor.start_link(__MODULE__, arg, opts)
       end

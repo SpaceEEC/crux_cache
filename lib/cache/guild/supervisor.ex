@@ -2,6 +2,7 @@ defmodule Crux.Cache.Guild.Supervisor.Supervisor do
   @moduledoc false
   use Supervisor
 
+  @spec start_link(term()) :: Supervisor.on_start()
   def start_link(opts), do: Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
 
   @impl true
@@ -19,6 +20,7 @@ defmodule Crux.Cache.Guild.Supervisor do
   @moduledoc false
   use DynamicSupervisor
 
+  @spec start_link(term()) :: DynamicSupervisor.on_start()
   def start_link(args), do: DynamicSupervisor.start_link(__MODULE__, args, name: __MODULE__)
 
   @impl true
@@ -26,6 +28,7 @@ defmodule Crux.Cache.Guild.Supervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  @spec start_child(Crux.Structs.Guild.t()) :: DynamicSupervisor.on_start_child()
   def start_child(%Crux.Structs.Guild{} = guild) do
     DynamicSupervisor.start_child(
       __MODULE__,

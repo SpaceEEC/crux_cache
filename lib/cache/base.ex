@@ -2,6 +2,10 @@ defmodule Crux.Cache.Base do
   @moduledoc """
     Base cache utilising ETS tables, `:ets`
   """
+
+  alias Crux.Structs
+  alias Crux.Structs.Util
+
   defmacro __using__(args \\ []) do
     # This does not feel right
     quote location: :keep do
@@ -30,12 +34,13 @@ defmodule Crux.Cache.Base do
       if @struct do
         def fetch(id) do
           with {:ok, data} <- Crux.Cache.Base.fetch(@name, id),
-               do: {:ok, Crux.Structs.create(data, @struct)}
+               do: {:ok, Structs.create(data, @struct)}
         end
 
         def fetch!(id) do
-          Crux.Cache.Base.fetch!(@name, id)
-          |> Crux.Structs.create(@struct)
+          @name
+          |> Crux.Cache.Base.fetch!(id)
+          |> Structs.create(@struct)
         end
       else
         def fetch(id), do: Crux.Cache.Base.fetch(@name, id)
@@ -93,12 +98,12 @@ defmodule Crux.Cache.Base do
     end
   end
 
-  alias Crux.Structs.Util
-
   @doc false
+  @spec cache(GenServer.server(), map() | struct()) :: map() | struct()
   def cache(name, structure) do
     structure =
-      Util.atomify(structure)
+      structure
+      |> Util.atomify()
       |> Map.update!(:id, &Util.id_to_int/1)
 
     GenServer.cast(name, {:cache, structure})
@@ -107,15 +112,18 @@ defmodule Crux.Cache.Base do
   end
 
   @doc false
+  @spec update(GenServer.server(), map() | struct()) :: map() | struct()
   def update(name, structure) do
     structure =
-      Util.atomify(structure)
+      structure
+      |> Util.atomify()
       |> Map.update!(:id, &Util.id_to_int/1)
 
     GenServer.call(name, {:update, structure})
   end
 
   @doc false
+  @spec fetch(GenServer.server(), Crux.Cache.key()) :: {:ok, struct()} | :error
   def fetch(name, id) do
     case :ets.lookup(name, id) do
       [{^id, structure}] ->
@@ -127,6 +135,7 @@ defmodule Crux.Cache.Base do
   end
 
   @doc false
+  @spec fetch!(GenServer.server(), Crux.Cache.key()) :: struct() | no_return()
   def fetch!(name, id) do
     case fetch(name, id) do
       {:ok, structure} ->
@@ -138,6 +147,7 @@ defmodule Crux.Cache.Base do
   end
 
   @doc false
+  @spec delete(GenServer.server(), Crux.Cache.key()) :: :ok
   def delete(name, id) do
     case fetch(name, id) do
       {:ok, _} ->
@@ -149,6 +159,7 @@ defmodule Crux.Cache.Base do
   end
 
   @doc false
+  @spec deep_merge(term(), term()) :: term()
   def deep_merge(%{} = old, %{} = new), do: Map.merge(old, new, &deep_merge_map/3)
 
   # Replacing lists seems to be the correct way to "update" here
@@ -156,9 +167,10 @@ defmodule Crux.Cache.Base do
   def deep_merge(_old, new), do: new
 
   @doc false
-  def deep_merge_map(_key, %{} = oldV, newV) when is_list(newV), do: deep_merge(oldV, newV)
+  @spec deep_merge_map(term(), term(), term()) :: term()
+  def deep_merge_map(_key, %{} = old_v, new_v) when is_list(new_v), do: deep_merge(old_v, new_v)
 
   # Replacing lists seems to be the correct way to "update" here
-  def deep_merge_map(_key, oldV, newV) when is_list(oldV) and is_list(newV), do: newV
-  def deep_merge_map(_key, _oldV, newV), do: newV
+  def deep_merge_map(_key, old_v, new_v) when is_list(old_v) and is_list(new_v), do: new_v
+  def deep_merge_map(_key, _oldV, new_v), do: new_v
 end
