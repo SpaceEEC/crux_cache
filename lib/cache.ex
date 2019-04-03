@@ -8,12 +8,15 @@ defmodule Crux.Cache do
       * A `me/0` and `me!/0` function getting the own user
     * Guild cache:
       * A bit more, you probably want to take a look at the code of the `Crux.Cache.Guild` module
+
+    Custom caches should be put under a `Crux.Cache.Provider`. (Can be combined with default caches)
+
+    Also worth a look:
+    * `Crux.Cache.None` - A dummy `Crux.Cache` and `Crux.Cache.Provider`, not caching anything.
   """
 
   @typedoc """
   Default caches are using Discord Snowflakes as identifiers.
-
-  Custom caches my obviously implement their own key type.
   """
   @type key :: non_neg_integer()
 
