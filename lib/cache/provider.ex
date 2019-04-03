@@ -1,6 +1,8 @@
 defmodule Crux.Cache.Provider do
   @moduledoc """
     A behaviour module for cache providers.
+
+    Caches with a `start_link` function will be automatically put under the supervision tree when starting the module implementing this behaviour.
   """
 
   @doc """
