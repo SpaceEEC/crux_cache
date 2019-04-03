@@ -1,7 +1,7 @@
 defmodule Crux.Cache.MixProject do
   use Mix.Project
 
-  @vsn "0.2.0-dev"
+  @vsn "0.2.0"
   @name :crux_cache
 
   def project do
@@ -40,7 +40,7 @@ defmodule Crux.Cache.MixProject do
 
   defp deps do
     [
-      {:crux_structs, git: "https://github.com/spaceeec/crux_structs.git"},
+      {:crux_structs, "~> 0.2.0"},
       {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
       {:ex_doc,
        git: "https://github.com/spaceeec/ex_doc",
