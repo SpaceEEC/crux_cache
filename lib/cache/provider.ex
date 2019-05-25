@@ -38,6 +38,12 @@ defmodule Crux.Cache.Provider do
       use Supervisor
 
       @doc false
+      @spec start_link({state :: term(), GenServer.options()}) :: Supervisor.on_start()
+      def start_link({state, gen_opts}) do
+        start_link(state, gen_opts)
+      end
+
+      @doc false
       @spec start_link(term(), GenServer.options()) :: Supervisor.on_start()
       def start_link(arg \\ [], opts \\ []) do
         Supervisor.start_link(__MODULE__, arg, opts)
@@ -53,7 +59,7 @@ defmodule Crux.Cache.Provider do
         Supervisor.init(children, strategy: :one_for_one)
       end
 
-      defoverridable(init: 1, start_link: 2)
+      defoverridable(init: 1, start_link: 1, start_link: 2)
     end
   end
 end
